@@ -4,8 +4,23 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var ( 
+    registeredUsers = promauto.NewCounter(prometheus.CounterOpts{
+        Name: "registered_users",
+        Help: "The total number of registeres users.",
+    })
+    cakesUpdated = promauto.NewCounter(prometheus.CounterOpts{
+        Name: "cakes_updated",
+        Help: "The total number of cakes updates.",
+    })
 )
 
 type User struct {
@@ -26,6 +41,7 @@ type UserRepository interface {
 
 type UserService struct {
 	Repository UserRepository
+    Publisher *Publisher
 }
 
 type UserRegisterParams struct {
@@ -122,6 +138,10 @@ func (u *UserService) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+    u.Publisher.Publish(fmt.Sprintf("user %s has been registered", newUser.Email))
+
+    registeredUsers.Inc()
+
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("registered"))
 }
@@ -146,6 +166,8 @@ func (us *UserService) UpdateCake(w http.ResponseWriter, r *http.Request, user U
 		handleError(err, w)
 		return
 	}
+
+    us.Publisher.Publish(fmt.Sprintf("user %s has updated his cake", user.Email))
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("updated"))
@@ -177,6 +199,8 @@ func (u *UserService) UpdateEmail(w http.ResponseWriter, r *http.Request, user U
 		return
 	}
 
+    u.Publisher.Publish(fmt.Sprintf("user %s has updated his email", user.Email))
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("updated"))
 }
@@ -202,6 +226,8 @@ func (u *UserService) UpdatePassword(w http.ResponseWriter, r *http.Request, use
 		handleError(err, w)
 		return
 	}
+
+    u.Publisher.Publish(fmt.Sprintf("user %s has updated his password", user.Email))
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("updated"))

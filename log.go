@@ -7,7 +7,17 @@ import (
 	"log"
 	"net/http"
 	"time"
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var endpointsExecTime = promauto.NewHistogramVec(prometheus.HistogramOpts{
+        Name: "endpoint_exec_time",
+        Help: "The total endpoint execution time.",
+    },
+    []string{
+        "path",
+    })
 
 type logWriter struct {
 	http.ResponseWriter
@@ -43,6 +53,8 @@ func logRequest(h http.HandlerFunc) http.HandlerFunc {
 		started := time.Now()
 		h(writer, r)
 		done := time.Since(started)
+
+        endpointsExecTime.With(prometheus.Labels{"path": r.URL.Path}).Observe(float64(done))
 
 		log.Printf(
 			"PATH: %s -> %d. Finished in %v.\n\tParams: %s\n\tResponse: %s",

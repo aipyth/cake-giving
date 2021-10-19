@@ -10,7 +10,15 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+    "github.com/prometheus/client_golang/prometheus/promhttp"
+    "github.com/prometheus/client_golang/prometheus"
+    "github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+var cakesGiven = promauto.NewCounter(prometheus.CounterOpts{
+        Name: "cakes_given",
+        Help: "The total number of cakes given.",
+    })
 
 func wrapJwt(
 	jwt *JWTService,
@@ -34,19 +42,37 @@ func addSuperadmin(s UserRepository) error {
 }
 
 func GetCakeHandler(w http.ResponseWriter, r *http.Request, u User) {
+    cakesGiven.Inc()
 	w.Write([]byte(u.FavoriteCake))
 }
 
 func main() {
+    queueName := "cake-giving-messages"
+    publisherNWorkers := uint(2)
+    amqpUrl := os.Getenv("AMQP_URI")
+
 	r := mux.NewRouter()
+
+    // Publisher manages messages delivery to amqp
+    publisher := NewPublisher(amqpUrl, queueName, publisherNWorkers)
+    go publisher.runWorkers()
 
 	users := NewInMemoryStorage()
 	userService := UserService{
 		Repository: users,
+        Publisher: publisher,
 	}
+
+    // Hub publishes all messages from RabbitMQ
+    hub := NewHub(amqpUrl, queueName)
+    go hub.run()
+
+    // AdminService is an abstraction to contain all admin's endpoints
 	adminService := AdminService{
+        Hub: hub,
 		Repository: users,
 		BanHistory: NewInMemoryBanHistory(),
+        Publisher: publisher,
 	}
 	jwtService, err := NewJWTService("public.rsa", "privkey.rsa")
 	if err != nil {
@@ -82,6 +108,9 @@ func main() {
 	r.HandleFunc("/admin/fire", logRequest(jwtService.jwtSuperadminAuth(users, adminService.FireAdmin))).
 		Methods(http.MethodPost)
 
+    // Admin WS
+    r.HandleFunc("/ws", jwtService.jwtAdminAuth(users, adminService.serveWs))
+
 	srv := http.Server{
 		Addr:    ":8080",
 		Handler: r,
@@ -96,6 +125,12 @@ func main() {
 		log.Println("Gracefully shutting down...")
 		srv.Shutdown(ctx)
 	}()
+
+    // run metrics
+    go func() {
+        http.Handle("/metrics", promhttp.Handler())
+        http.ListenAndServe(":2112", nil)
+    }()
 
 	log.Println("Server started, hit Ctrl+C to stop")
 	err = srv.ListenAndServe()

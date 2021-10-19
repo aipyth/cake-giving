@@ -8,6 +8,15 @@ import (
 	"strings"
 
 	"github.com/openware/rango/pkg/auth"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var ( 
+    jwpNotPassed = promauto.NewCounter(prometheus.CounterOpts{
+        Name: "jwt_restricted",
+        Help: "The total number of not allowed jwt connections.",
+    })
 )
 
 type JWTService struct {
@@ -77,6 +86,7 @@ func (j *JWTService) jwtAuth(
 		if err != nil {
 			rw.WriteHeader(http.StatusUnauthorized)
 			rw.Write([]byte("unauthorized"))
+            jwpNotPassed.Inc()
 			return
 		}
 
@@ -84,12 +94,15 @@ func (j *JWTService) jwtAuth(
 		if err != nil {
 			rw.WriteHeader(http.StatusUnauthorized)
 			rw.Write([]byte("unauthorized"))
+            jwpNotPassed.Inc()
 			return
 		}
 
 		if user.Banned {
 			rw.WriteHeader(401)
 			rw.Write([]byte(user.BanReason))
+            jwpNotPassed.Inc()
+            return
 		}
 
 		h(rw, r, user)
@@ -114,18 +127,21 @@ func (j *JWTService) jwtAdminAuth(
 		if err != nil {
 			rw.WriteHeader(http.StatusUnauthorized)
 			rw.Write([]byte("unauthorized"))
+            jwpNotPassed.Inc()
 			return
 		}
 
 		if user.Banned {
 			rw.WriteHeader(401)
 			rw.Write([]byte(user.BanReason))
+            jwpNotPassed.Inc()
 			return
 		}
 
 		if !user.IsAdmin() {
 			rw.WriteHeader(401)
 			rw.Write([]byte("user cannot access admin api"))
+            jwpNotPassed.Inc()
 			return
 		}
 
@@ -151,18 +167,21 @@ func (j *JWTService) jwtSuperadminAuth(
 		if err != nil {
 			rw.WriteHeader(http.StatusUnauthorized)
 			rw.Write([]byte("unauthorized"))
+            jwpNotPassed.Inc()
 			return
 		}
 
 		if user.Banned {
 			rw.WriteHeader(401)
 			rw.Write([]byte(user.BanReason))
+            jwpNotPassed.Inc()
 			return
 		}
 
 		if user.Role != "superadmin" {
 			rw.WriteHeader(401)
 			rw.Write([]byte("access denied"))
+            jwpNotPassed.Inc()
 			return
 		}
 

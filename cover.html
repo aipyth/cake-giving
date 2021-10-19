@@ -1,0 +1,1034 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>cake-giving: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/aipyth/cake-giving/admin.go (72.1%)</option>
+				
+				<option value="file1">github.com/aipyth/cake-giving/ban-history.go (100.0%)</option>
+				
+				<option value="file2">github.com/aipyth/cake-giving/jwt.go (71.8%)</option>
+				
+				<option value="file3">github.com/aipyth/cake-giving/log.go (0.0%)</option>
+				
+				<option value="file4">github.com/aipyth/cake-giving/main.go (17.1%)</option>
+				
+				<option value="file5">github.com/aipyth/cake-giving/user_repository.go (85.0%)</option>
+				
+				<option value="file6">github.com/aipyth/cake-giving/users.go (73.5%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "encoding/json"
+        "errors"
+        "net/http"
+)
+
+type AdminService struct {
+        Repository UserRepository
+        BanHistory BanHistoryRepository
+}
+
+type BanParams struct {
+        Email  string `json:"email"`
+        Reason string `json:"reason"`
+}
+
+type UnbanParams struct {
+        Email  string `json:"email"`
+        Reason string `json:"reason"`
+}
+
+type PromoteToAdminParams struct {
+        Email string `json:"email"`
+}
+
+type FireAdminParams struct {
+        Email string `json:"email"`
+}
+
+func (a *AdminService) BanUser(w http.ResponseWriter, r *http.Request, user User) <span class="cov10" title="7">{
+        var params BanParams
+        err := json.NewDecoder(r.Body).Decode(&amp;params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not parse params"), w)
+                return
+        }</span>
+
+        <span class="cov10" title="7">if err := validateEmail(params.Email); err != nil </span><span class="cov6" title="3">{
+                handleError(err, w)
+                return
+        }</span>
+        <span class="cov7" title="4">if params.Reason == "" </span><span class="cov1" title="1">{
+                handleError(errors.New("reason to ban is not specified or empty"), w)
+                return
+        }</span>
+
+        <span class="cov6" title="3">userToBan, err := a.Repository.Get(params.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov6" title="3">if user.Role == userToBan.Role || userToBan.Role == "superadmin" </span><span class="cov4" title="2">{
+                handleError(errors.New("no such permission to ban this user"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">userToBan.Banned = true
+        userToBan.BanReason = params.Reason
+        err = a.Repository.Update(userToBan.Email, userToBan)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">err = a.BanHistory.AddBanned(user, userToBan, params.Reason)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("banned"))</span>
+}
+
+func (a *AdminService) UnbanUser(w http.ResponseWriter, r *http.Request, user User) <span class="cov7" title="4">{
+        var params UnbanParams
+        err := json.NewDecoder(r.Body).Decode(&amp;params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not parse params"), w)
+                return
+        }</span>
+
+        <span class="cov7" title="4">if err := validateEmail(params.Email); err != nil </span><span class="cov1" title="1">{
+                handleError(err, w)
+                return
+        }</span>
+        <span class="cov6" title="3">if params.Reason == "" </span><span class="cov1" title="1">{
+                handleError(errors.New("reason to unban is not specified or empty"), w)
+                return
+        }</span>
+
+        <span class="cov4" title="2">userToUnban, err := a.Repository.Get(params.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov4" title="2">if user.Role == userToUnban.Role </span><span class="cov1" title="1">{
+                handleError(errors.New("no such permission to unban this user"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">userToUnban.Banned = false
+        userToUnban.BanReason = ""
+        err = a.Repository.Update(userToUnban.Email, userToUnban)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">err = a.BanHistory.AddUnbanned(user, userToUnban, params.Reason)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("unbanned"))</span>
+}
+
+func (a *AdminService) InspectUserBanHistory(w http.ResponseWriter, r *http.Request, user User) <span class="cov4" title="2">{
+        email := r.URL.Query().Get("email")
+        if err := validateEmail(email); err != nil </span><span class="cov1" title="1">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">userToInspect, err := a.Repository.Get(email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">hist, err := a.BanHistory.GetUserBanHistory(userToInspect)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+        <span class="cov1" title="1">out, err := json.Marshal(hist)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("error serializing user ban history"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write(out)</span>
+}
+
+func (a *AdminService) PromoteToAdmin(w http.ResponseWriter, r *http.Request, user User) <span class="cov7" title="4">{
+        var params PromoteToAdminParams
+        err := json.NewDecoder(r.Body).Decode(&amp;params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not parse params"), w)
+                return
+        }</span>
+
+        <span class="cov7" title="4">if err := validateEmail(params.Email); err != nil </span><span class="cov1" title="1">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov6" title="3">userToPromote, err := a.Repository.Get(params.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov6" title="3">if userToPromote.Role != "user" </span><span class="cov4" title="2">{
+                handleError(errors.New("cannot promote this user"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">userToPromote.Role = "admin"
+        err = a.Repository.Update(userToPromote.Email, userToPromote)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("promoted"))</span>
+}
+
+func (a *AdminService) FireAdmin(w http.ResponseWriter, r *http.Request, user User) <span class="cov6" title="3">{
+        var params FireAdminParams
+        err := json.NewDecoder(r.Body).Decode(&amp;params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not parse params"), w)
+                return
+        }</span>
+
+        <span class="cov6" title="3">if err := validateEmail(params.Email); err != nil </span><span class="cov1" title="1">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov4" title="2">userToFire, err := a.Repository.Get(params.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov4" title="2">if userToFire.Role != "admin" </span><span class="cov1" title="1">{
+                handleError(errors.New("cannot fire this user"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">userToFire.Role = "user"
+        err = a.Repository.Update(userToFire.Email, userToFire)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("fired"))</span>
+
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import "time"
+
+type BanRecord struct {
+        Time   time.Time
+        From   User
+        To     User
+        Action string
+        Reason string
+}
+
+type BanHistoryRepository interface {
+        AddBanned(from User, to User, reason string) error
+        AddUnbanned(from User, to User, reason string) error
+        GetUserBanHistory(user User) ([]BanRecord, error)
+}
+
+type InMemoryBanHistory struct {
+        storage map[User][]BanRecord
+}
+
+func NewInMemoryBanHistory() *InMemoryBanHistory <span class="cov10" title="26">{
+        return &amp;InMemoryBanHistory{
+                storage: make(map[User][]BanRecord),
+        }
+}</span>
+
+func (b *InMemoryBanHistory) AddBanned(from User, to User, reason string) error <span class="cov2" title="2">{
+        record := BanRecord{
+                Time:   time.Now(),
+                From:   from,
+                To:     to,
+                Action: "ban",
+                Reason: reason,
+        }
+        if b.storage[to] == nil </span><span class="cov2" title="2">{
+                b.storage[to] = make([]BanRecord, 0)
+        }</span>
+        <span class="cov2" title="2">b.storage[to] = append(b.storage[to], record)
+        return nil</span>
+}
+
+func (b *InMemoryBanHistory) AddUnbanned(from User, to User, reason string) error <span class="cov1" title="1">{
+        record := BanRecord{
+                Time:   time.Now(),
+                From:   from,
+                To:     to,
+                Action: "unban",
+                Reason: reason,
+        }
+        if b.storage[to] == nil </span><span class="cov1" title="1">{
+                b.storage[to] = make([]BanRecord, 0)
+        }</span>
+        <span class="cov1" title="1">b.storage[to] = append(b.storage[to], record)
+        return nil</span>
+}
+
+func (b *InMemoryBanHistory) GetUserBanHistory(user User) ([]BanRecord, error) <span class="cov4" title="3">{
+        return b.storage[user], nil
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package main
+
+import (
+        "crypto/md5"
+        "encoding/json"
+        "errors"
+        "net/http"
+        "strings"
+
+        "github.com/openware/rango/pkg/auth"
+)
+
+type JWTService struct {
+        keys *auth.KeyStore
+}
+
+type ProtectedHandler func(rw http.ResponseWriter, r *http.Request, u User)
+
+func NewJWTService(privKeyPath, pubKeyPath string) (*JWTService, error) <span class="cov8" title="36">{
+        keys, err := auth.LoadOrGenerateKeys(privKeyPath, pubKeyPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="36">return &amp;JWTService{keys: keys}, nil</span>
+}
+
+func (j *JWTService) ParseJWT(jwt string) (auth.Auth, error) <span class="cov8" title="33">{
+        return auth.ParseAndValidate(jwt, j.keys.PublicKey)
+}</span>
+
+func (j *JWTService) GenerateJwt(u User) (string, error) <span class="cov10" title="62">{
+        return auth.ForgeToken("empty", u.Email, "empty", 0, j.keys.PrivateKey, nil)
+}</span>
+
+type JWTParams struct {
+        Email    string `json:"email"`
+        Password string `json:"password"`
+}
+
+func (u *UserService) JWT(w http.ResponseWriter, r *http.Request, jwtService *JWTService) <span class="cov3" title="3">{
+        params := &amp;JWTParams{}
+        err := json.NewDecoder(r.Body).Decode(params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not read params"), w)
+                return
+        }</span>
+
+        <span class="cov3" title="3">passwordDigest := md5.New().Sum([]byte(params.Password))
+        user, err := u.Repository.Get(params.Email)
+        if err != nil </span><span class="cov1" title="1">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov2" title="2">if string(passwordDigest) != user.PasswordDigest </span><span class="cov1" title="1">{
+                handleError(errors.New("invalid login params"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">token, err := jwtService.GenerateJwt(user)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte(token))</span>
+}
+
+func (j *JWTService) jwtAuth(
+        users UserRepository,
+        h ProtectedHandler,
+) http.HandlerFunc <span class="cov5" title="7">{
+        return func(rw http.ResponseWriter, r *http.Request) </span><span class="cov5" title="7">{
+                authHeader := r.Header.Get("Authorization")
+                token := strings.TrimPrefix(authHeader, "Bearer ")
+                auth, err := j.ParseJWT(token)
+                if err != nil </span><span class="cov1" title="1">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov4" title="6">user, err := users.Get(auth.Email)
+                if err != nil </span><span class="cov0" title="0">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov4" title="6">if user.Banned </span><span class="cov0" title="0">{
+                        rw.WriteHeader(401)
+                        rw.Write([]byte(user.BanReason))
+                }</span>
+
+                <span class="cov4" title="6">h(rw, r, user)</span>
+        }
+}
+
+func (j *JWTService) jwtAdminAuth(
+        users UserRepository,
+        h ProtectedHandler,
+) http.HandlerFunc <span class="cov6" title="15">{
+        return func(rw http.ResponseWriter, r *http.Request) </span><span class="cov6" title="15">{
+                authHeader := r.Header.Get("Authorization")
+                token := strings.TrimPrefix(authHeader, "Bearer ")
+                auth, err := j.ParseJWT(token)
+                if err != nil </span><span class="cov0" title="0">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov6" title="15">user, err := users.Get(auth.Email)
+                if err != nil </span><span class="cov0" title="0">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov6" title="15">if user.Banned </span><span class="cov1" title="1">{
+                        rw.WriteHeader(401)
+                        rw.Write([]byte(user.BanReason))
+                        return
+                }</span>
+
+                <span class="cov6" title="14">if !user.IsAdmin() </span><span class="cov1" title="1">{
+                        rw.WriteHeader(401)
+                        rw.Write([]byte("user cannot access admin api"))
+                        return
+                }</span>
+
+                <span class="cov6" title="13">h(rw, r, user)</span>
+        }
+}
+
+func (j *JWTService) jwtSuperadminAuth(
+        users UserRepository,
+        h ProtectedHandler,
+) http.HandlerFunc <span class="cov6" title="11">{
+        return func(rw http.ResponseWriter, r *http.Request) </span><span class="cov6" title="11">{
+                authHeader := r.Header.Get("Authorization")
+                token := strings.TrimPrefix(authHeader, "Bearer ")
+                auth, err := j.ParseJWT(token)
+                if err != nil </span><span class="cov0" title="0">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov6" title="11">user, err := users.Get(auth.Email)
+                if err != nil </span><span class="cov0" title="0">{
+                        rw.WriteHeader(http.StatusUnauthorized)
+                        rw.Write([]byte("unauthorized"))
+                        return
+                }</span>
+
+                <span class="cov6" title="11">if user.Banned </span><span class="cov0" title="0">{
+                        rw.WriteHeader(401)
+                        rw.Write([]byte(user.BanReason))
+                        return
+                }</span>
+
+                <span class="cov6" title="11">if user.Role != "superadmin" </span><span class="cov4" title="4">{
+                        rw.WriteHeader(401)
+                        rw.Write([]byte("access denied"))
+                        return
+                }</span>
+
+                <span class="cov5" title="7">h(rw, r, user)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package main
+
+import (
+        "bytes"
+        "errors"
+        "io/ioutil"
+        "log"
+        "net/http"
+        "time"
+)
+
+type logWriter struct {
+        http.ResponseWriter
+
+        statusCode int
+        response   bytes.Buffer
+}
+
+func (w *logWriter) WriteHeader(status int) <span class="cov0" title="0">{
+        w.ResponseWriter.WriteHeader(status)
+        w.statusCode = status
+}</span>
+
+func (w *logWriter) Write(p []byte) (int, error) <span class="cov0" title="0">{
+        w.response.Write(p)
+        return w.ResponseWriter.Write(p)
+}</span>
+
+func logRequest(h http.HandlerFunc) http.HandlerFunc <span class="cov0" title="0">{
+        return func(rw http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                writer := &amp;logWriter{
+                        ResponseWriter: rw,
+                }
+
+                body, err := ioutil.ReadAll(r.Body)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Println("Could not read request body", err)
+                        handleError(errors.New("could not read request"), rw)
+                        return
+                }</span>
+                <span class="cov0" title="0">r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+
+                started := time.Now()
+                h(writer, r)
+                done := time.Since(started)
+
+                log.Printf(
+                        "PATH: %s -&gt; %d. Finished in %v.\n\tParams: %s\n\tResponse: %s",
+                        r.URL.Path,
+                        writer.statusCode,
+                        done,
+                        string(body),
+                        writer.response.String(),
+                )</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package main
+
+import (
+        "context"
+        "crypto/md5"
+        "log"
+        "net/http"
+        "os"
+        "os/signal"
+        "time"
+
+        "github.com/gorilla/mux"
+)
+
+func wrapJwt(
+        jwt *JWTService,
+        f func(http.ResponseWriter, *http.Request, *JWTService),
+) http.HandlerFunc <span class="cov4" title="3">{
+        return func(rw http.ResponseWriter, r *http.Request) </span><span class="cov4" title="3">{
+                f(rw, r, jwt)
+        }</span>
+}
+
+func addSuperadmin(s UserRepository) error <span class="cov10" title="26">{
+        password := os.Getenv("CAKE_ADMIN_PASSWORD")
+        passwordDigest := md5.New().Sum([]byte(password))
+        superadmin := User{
+                Email:          os.Getenv("CAKE_ADMIN_EMAIL"),
+                PasswordDigest: string(passwordDigest),
+                FavoriteCake:   "",
+                Role:           "superadmin",
+        }
+        return s.Add(superadmin.Email, superadmin)
+}</span>
+
+func GetCakeHandler(w http.ResponseWriter, r *http.Request, u User) <span class="cov2" title="2">{
+        w.Write([]byte(u.FavoriteCake))
+}</span>
+
+func main() <span class="cov0" title="0">{
+        r := mux.NewRouter()
+
+        users := NewInMemoryStorage()
+        userService := UserService{
+                Repository: users,
+        }
+        adminService := AdminService{
+                Repository: users,
+                BanHistory: NewInMemoryBanHistory(),
+        }
+        jwtService, err := NewJWTService("public.rsa", "privkey.rsa")
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+
+        <span class="cov0" title="0">addSuperadmin(users)
+
+        // User handlers
+        r.HandleFunc("/cake", logRequest(jwtService.jwtAuth(users, GetCakeHandler))).
+                Methods(http.MethodGet)
+        r.HandleFunc("/user/register", logRequest(userService.Register)).
+                Methods(http.MethodPost)
+        r.HandleFunc("/user/jwt", logRequest(wrapJwt(jwtService, userService.JWT))).
+                Methods(http.MethodPost)
+        r.HandleFunc("/user/favorite_cake", logRequest(jwtService.jwtAuth(users, userService.UpdateCake))).
+                Methods(http.MethodPut)
+        r.HandleFunc("/user/email", logRequest(jwtService.jwtAuth(users, userService.UpdateEmail))).
+                Methods(http.MethodPut)
+        r.HandleFunc("/user/password", logRequest(jwtService.jwtAuth(users, userService.UpdatePassword))).
+                Methods(http.MethodPut)
+        r.HandleFunc("/user/me", logRequest(jwtService.jwtAuth(users, userService.GetMe)))
+
+        // Admin handlers
+        r.HandleFunc("/admin/ban", logRequest(jwtService.jwtAdminAuth(users, adminService.BanUser))).
+                Methods(http.MethodPost)
+        r.HandleFunc("/admin/unban", logRequest(jwtService.jwtAdminAuth(users, adminService.UnbanUser))).
+                Methods(http.MethodPost)
+        r.HandleFunc("/admin/inspect", logRequest(jwtService.jwtAdminAuth(users, adminService.InspectUserBanHistory))).
+                Methods(http.MethodGet)
+        r.HandleFunc("/admin/promote", logRequest(jwtService.jwtSuperadminAuth(users, adminService.PromoteToAdmin))).
+                Methods(http.MethodPost)
+        r.HandleFunc("/admin/fire", logRequest(jwtService.jwtSuperadminAuth(users, adminService.FireAdmin))).
+                Methods(http.MethodPost)
+
+        srv := http.Server{
+                Addr:    ":8080",
+                Handler: r,
+        }
+
+        interrupt := make(chan os.Signal, 1)
+        signal.Notify(interrupt, os.Interrupt)
+        go func() </span><span class="cov0" title="0">{
+                &lt;-interrupt
+                ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+                defer cancel()
+                log.Println("Gracefully shutting down...")
+                srv.Shutdown(ctx)
+        }</span>()
+
+        <span class="cov0" title="0">log.Println("Server started, hit Ctrl+C to stop")
+        err = srv.ListenAndServe()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Println("Server exited with error:", err)
+        }</span>
+        <span class="cov0" title="0">log.Println("Good bye :)")</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package main
+
+import (
+        "errors"
+        "sync"
+)
+
+type InMemoryUserStorage struct {
+        lock    sync.RWMutex
+        storage map[string]User
+}
+
+func NewInMemoryStorage() *InMemoryUserStorage <span class="cov8" title="46">{
+        return &amp;InMemoryUserStorage{
+                lock:    sync.RWMutex{},
+                storage: make(map[string]User),
+        }
+}</span>
+
+// Add should return error if user with given key (login) is already present
+func (s *InMemoryUserStorage) Add(key string, u User) error <span class="cov9" title="71">{
+        s.lock.Lock()
+        if _, ok := s.storage[key]; ok </span><span class="cov0" title="0">{
+                return errors.New("user already exists")
+        }</span>
+        <span class="cov9" title="71">s.storage[key] = u
+        s.lock.Unlock()
+        return nil</span>
+}
+
+//  Get return User by key if exists
+func (s *InMemoryUserStorage) Get(key string) (User, error) <span class="cov10" title="83">{
+        u, ok := s.storage[key]
+        if !ok </span><span class="cov1" title="1">{
+                return u, errors.New("no such user")
+        }</span>
+        <span class="cov9" title="82">return u, nil</span>
+}
+
+// Update should return error if there is no such user to update
+func (s *InMemoryUserStorage) Update(key string, u User) error <span class="cov6" title="18">{
+        if _, ok := s.storage[key]; !ok </span><span class="cov0" title="0">{
+                return errors.New("no such user")
+        }</span>
+        <span class="cov6" title="18">s.storage[key] = u
+        return nil</span>
+}
+
+// Delete should return error if there is no such user to delete
+// Delete should return deleted user
+func (s *InMemoryUserStorage) Delete(key string) (User, error) <span class="cov3" title="3">{
+        if _, ok := s.storage[key]; !ok </span><span class="cov0" title="0">{
+                return User{}, errors.New("no such user")
+        }</span>
+        <span class="cov3" title="3">u := s.storage[key]
+        delete(s.storage, key)
+        return u, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package main
+
+import (
+        "crypto/md5"
+        "encoding/json"
+        "errors"
+        "net/http"
+        "regexp"
+)
+
+type User struct {
+        Email          string
+        PasswordDigest string
+        Role           string
+        FavoriteCake   string
+        Banned         bool
+        BanReason      string
+}
+
+type UserRepository interface {
+        Add(string, User) error
+        Get(string) (User, error)
+        Update(string, User) error
+        Delete(string) (User, error)
+}
+
+type UserService struct {
+        Repository UserRepository
+}
+
+type UserRegisterParams struct {
+        Email        string `json:"email"`
+        Password     string `json:"password"`
+        FavoriteCake string `json:"favorite_cake"`
+}
+
+type UserUpdateCakeParams struct {
+        FavoriteCake string `json:"favorite_cake"`
+}
+
+type UserUpdateEmailParams struct {
+        Email string `json:"email"`
+}
+
+type UserUpdatePasswordParams struct {
+        Password string `json:"password"`
+}
+
+func validateCake(cake string) error <span class="cov4" title="4">{
+        // 3. Favorite cake not empty
+        if cake == "" </span><span class="cov1" title="1">{
+                return errors.New("favorite cake is empty")
+        }</span>
+        // 4. Favorite cake only alphabetic
+        <span class="cov4" title="3">cakeRegex := regexp.MustCompile("^[a-zA-Z ]+$")
+        if !cakeRegex.Match([]byte(cake)) </span><span class="cov1" title="1">{
+                return errors.New("favorite cake can only be alphabetic")
+        }</span>
+
+        <span class="cov2" title="2">return nil</span>
+}
+
+func validateEmail(email string) error <span class="cov10" title="26">{
+        // 1. Email is valid
+        emailRegex := regexp.MustCompile("^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$")
+        if !emailRegex.Match([]byte(email)) </span><span class="cov6" title="8">{
+                return errors.New("email not valid")
+        }</span>
+        <span class="cov8" title="18">return nil</span>
+}
+
+func validatePassword(password string) error <span class="cov5" title="5">{
+        // 2. Password at least 8 symbols
+        if len(password) &lt; 8 </span><span class="cov1" title="1">{
+                return errors.New("password length is less than 8")
+        }</span>
+        <span class="cov4" title="4">return nil</span>
+}
+
+func validateRegisterParams(p *UserRegisterParams) error <span class="cov5" title="5">{
+        if err := validateEmail(p.Email); err != nil </span><span class="cov1" title="1">{
+                return err
+        }</span>
+        <span class="cov4" title="4">if err := validatePassword(p.Password); err != nil </span><span class="cov1" title="1">{
+                return err
+        }</span>
+        <span class="cov4" title="3">if err := validateCake(p.FavoriteCake); err != nil </span><span class="cov2" title="2">{
+                return err
+        }</span>
+
+        <span class="cov1" title="1">return nil</span>
+}
+
+func (u *User) IsAdmin() bool <span class="cov8" title="14">{
+        return u.Role == "admin" || u.Role == "superadmin"
+}</span>
+
+func (u *UserService) Register(w http.ResponseWriter, r *http.Request) <span class="cov5" title="5">{
+        params := &amp;UserRegisterParams{}
+        err := json.NewDecoder(r.Body).Decode(params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not read prarms"), w)
+                return
+        }</span>
+
+        <span class="cov5" title="5">if err := validateRegisterParams(params); err != nil </span><span class="cov4" title="4">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">passwordDigest := md5.New().Sum([]byte(params.Password))
+        newUser := User{
+                Email:          params.Email,
+                PasswordDigest: string(passwordDigest),
+                FavoriteCake:   params.FavoriteCake,
+                Role:           "user",
+        }
+
+        err = u.Repository.Add(params.Email, newUser)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusCreated)
+        w.Write([]byte("registered"))</span>
+}
+
+func (us *UserService) UpdateCake(w http.ResponseWriter, r *http.Request, user User) <span class="cov1" title="1">{
+        params := &amp;UserUpdateCakeParams{}
+        err := json.NewDecoder(r.Body).Decode(params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not read params"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">err = validateCake(params.FavoriteCake)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">user.FavoriteCake = params.FavoriteCake
+        err = us.Repository.Update(user.Email, user)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("updated"))</span>
+}
+
+func (u *UserService) UpdateEmail(w http.ResponseWriter, r *http.Request, user User) <span class="cov1" title="1">{
+        params := &amp;UserUpdateEmailParams{}
+        err := json.NewDecoder(r.Body).Decode(params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not read params"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">err = validateEmail(params.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">_, err = u.Repository.Delete(user.Email)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+        <span class="cov1" title="1">user.Email = params.Email
+        err = u.Repository.Add(user.Email, user)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("updated"))</span>
+}
+
+func (u *UserService) UpdatePassword(w http.ResponseWriter, r *http.Request, user User) <span class="cov1" title="1">{
+        params := &amp;UserUpdatePasswordParams{}
+        err := json.NewDecoder(r.Body).Decode(params)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(errors.New("could not read prarms"), w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">if err := validatePassword(params.Password); err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">passwordDigest := md5.New().Sum([]byte(params.Password))
+        user.PasswordDigest = string(passwordDigest)
+
+        err = u.Repository.Update(user.Email, user)
+        if err != nil </span><span class="cov0" title="0">{
+                handleError(err, w)
+                return
+        }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write([]byte("updated"))</span>
+}
+
+func (u *UserService) GetMe(w http.ResponseWriter, r *http.Request, user User) <span class="cov1" title="1">{
+    user.PasswordDigest = ""
+    out, err := json.Marshal(user)
+    if err != nil </span><span class="cov0" title="0">{
+        handleError(errors.New("could not encode response"), w)
+        return
+    }</span>
+
+        <span class="cov1" title="1">w.WriteHeader(http.StatusOK)
+        w.Write(out)</span>
+}
+
+func handleError(err error, w http.ResponseWriter) <span class="cov9" title="21">{
+        w.WriteHeader(http.StatusUnprocessableEntity)
+        w.Write([]byte(err.Error()))
+}</span>
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

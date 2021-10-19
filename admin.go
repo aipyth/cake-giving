@@ -3,12 +3,15 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
 type AdminService struct {
+    Hub *Hub
 	Repository UserRepository
 	BanHistory BanHistoryRepository
+    Publisher *Publisher
 }
 
 type BanParams struct {
@@ -70,6 +73,8 @@ func (a *AdminService) BanUser(w http.ResponseWriter, r *http.Request, user User
 		handleError(err, w)
 		return
 	}
+    
+    a.Publisher.Publish(fmt.Sprintf("user %s is being banned", user.Email))
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("banned"))
@@ -116,6 +121,8 @@ func (a *AdminService) UnbanUser(w http.ResponseWriter, r *http.Request, user Us
 		handleError(err, w)
 		return
 	}
+
+    a.Publisher.Publish(fmt.Sprintf("user %s is being unbanned", user.Email))
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("unbanned"))
@@ -180,6 +187,8 @@ func (a *AdminService) PromoteToAdmin(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 
+    a.Publisher.Publish(fmt.Sprintf("user %s is being promoted to admin", user.Email))
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("promoted"))
 }
@@ -215,7 +224,8 @@ func (a *AdminService) FireAdmin(w http.ResponseWriter, r *http.Request, user Us
 		return
 	}
 
+    a.Publisher.Publish(fmt.Sprintf("user %s is being fired out of admins", user.Email))
+
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("fired"))
-
 }
